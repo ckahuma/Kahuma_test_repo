@@ -1,0 +1,259 @@
+---
+title: "Maternal Health Assignment"
+author: "Clare-Allelua-Kahuma"
+date: "2025-02-12"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Importing Libraries
+
+tidy verse - Loads a collection of R packages for data science, including ggplot2, dplyr, tidyr, readr, purrr, and more.
+dplyr - Provides a grammar for data manipulation, making it easier to filter, arrange, summarize, and mutate data.
+
+```{r}
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+
+```
+
+### Importing a dataset
+
+Using read csv because...
+Header = TRUE to ensure the top column is considered as the label for columns 
+
+```{r}
+data <- read.csv("C:/Users/ckahuma/Downloads/Maternal Health Risk Data Set.csv", header = TRUE)
+
+```
+
+### Checking if my data loaded and exploring the data
+
+```{r}
+cat("------- Head of the data ---------\n")
+print(head(data))
+
+cat("\n------ Structure of the data ----------\n")
+str(data)
+
+cat("\n------- Summary of the data ---------\n")
+print(summary(data))
+
+cat("\n-------- Dimension of the data --------\n")
+print(dim(data))
+
+cat("\n-------- Number of rows --------\n")
+print(nrow(data))
+
+cat("\n-------- Number of columns --------\n")
+print(ncol(data))
+
+cat("\n-------- Column Names --------\n")
+print(colnames(data))
+
+cat("\n-------- The data type of the dataset --------\n")
+print(class(data))
+
+cat("\n-------- Class of the columns --------\n")
+print(sapply(data, class))
+
+cat("\n-------- Total missing data in columns --------\n")
+print(colSums(is.na(data)))
+
+cat("\n-------- Total missing data in dataset --------\n")
+print(sum(is.na(data)))
+
+
+```
+
+### Group according to risk level and find the mean age per group
+
+```{r}
+data %>%
+  group_by(RiskLevel) %>%
+  summarise(mean_age = mean(Age)) %>%
+  arrange(desc(mean_age))
+
+```
+
+### Median Per Group using Diastolic
+
+```{r}
+data %>%
+  group_by(RiskLevel) %>%
+  summarise(median_diastolic = median(DiastolicBP)) %>%
+  arrange(desc(median_diastolic))
+
+```
+
+###### Fun fact: If low risk and mid risk both had 75, how did R choose what goes above? Alphabetical order?
+
+R maintains the original order of these rows from the dataset. This is known as <a href="https://www.geeksforgeeks.org/stable-and-unstable-sorting-algorithms/" target="_blank"> "stable sorting" </a>—it preserves the relative order of equal values as they appeared in the dataset before sorting. 
+
+You can also write some html in the R markdown file. Dr, is this good or bad practice?
+
+
+### Creating a new variable: Systolic Rate 
+```{r}
+data %>%
+  mutate(Systolic_Rate = SystolicBP / Age)
+
+```
+
+### Filter participants of Age < 40 and average risk systolic for each risk level
+
+
+```{r}
+data %>%
+  filter(Age<=40) %>%
+  group_by(RiskLevel) %>%
+  summarise(AverageSystolic = mean(SystolicBP))
+
+
+```
+
+Why cant i filter before....Is this because the output before this (slightly higher) doesn't have age at this point?
+
+### Plots - Box Plot, histogram
+
+Continuous variable....
+
+In data reshaping, there are two main formats:
+
+Wide format: Each variable is represented by its own column.
+Long format: Each variable is represented by two columns—one for the variable name (like SystolicBP, DiastolicBP, etc.) and one for the values associated with that variable.
+
+```{r}
+data_long <- data %>%
+  select(Age, SystolicBP, DiastolicBP, BS, BodyTemp, HeartRate, RiskLevel) %>%
+  pivot_longer(cols = c(SystolicBP, DiastolicBP, BS, BodyTemp, HeartRate),
+               names_to = "Measurement", values_to = "Value")
+
+  ggplot(data_long, aes(x = RiskLevel, y = Value)) +
+  geom_boxplot() +
+  facet_wrap(~ Measurement, scales = "free_y") +
+  labs(title = "Box Plot of Measurements against Risk Level",
+       y = "Value", x = "Risk Level") +
+  theme_minimal()
+  
+```
+
+
+Histogram plot
+
+```{r}
+# Reshape the data to long format
+data_long <- data %>%
+  select(Age, SystolicBP, DiastolicBP, BS, BodyTemp, HeartRate, RiskLevel) %>%
+  pivot_longer(cols = c(Age, SystolicBP, DiastolicBP, BS, BodyTemp, HeartRate),
+               names_to = "Measurement", values_to = "Value")
+
+# Corrected histogram plot (x-axis should be continuous)
+ggplot(data_long, aes(x = Value, fill = RiskLevel)) +
+  geom_histogram(binwidth = 5, alpha = 0.6, position = "identity") +
+  facet_wrap(~ Measurement, scales = "free_x") +
+  labs(title = "Histograms of Measurements", 
+       x = "Value", y = "Count") +
+  theme_minimal()
+  
+
+```
+
+###Linear Regression
+
+```{r}
+
+heart_rate <- data$HeartRate
+Age <- data$Age
+plot(heart_rate, Age)
+
+# lm start with the response variables and ~
+fit <- lm(heart_rate~Age)
+fit
+summary(fit)
+
+```
+
+```{r}
+
+heart_rate <- data$HeartRate
+Systolic_BP <- data$SystolicBP
+plot(heart_rate, Systolic_BP)
+
+# lm start with the response variables and ~
+fit <- lm(heart_rate~Systolic_BP)
+fit
+summary(fit)
+
+```
+
+```{r}
+
+heart_rate <- data$HeartRate
+Diastolic_BP <- data$DiastolicBP
+plot(heart_rate, Diastolic_BP)
+
+# lm start with the response variables and ~
+fit <- lm(heart_rate~Diastolic_BP)
+fit
+summary(fit)
+
+```
+
+
+Check the predictors against themselves?
+
+```{r}
+
+library(corrplot)
+
+# Compute correlation matrix
+cor_matrix <- cor(data[, c("Age", "DiastolicBP", "SystolicBP")])
+
+# Plot the correlation matrix
+corrplot(cor_matrix, method = "color", type = "upper", tl.cex = 0.8)
+
+
+```
+Diastolic and systolic are hghly corelated
+A inear model for  heart rate vs age,and systolic
+
+```{r}
+
+# Create a linear regression model
+model <- lm(HeartRate ~ Age + Diastolic_BP, data = data)
+
+# View model summary
+summary(model)
+
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
